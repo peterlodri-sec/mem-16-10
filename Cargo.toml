@@ -1,0 +1,16 @@
+[package]
+name = "mem16-10"
+version = "0.1.42"
+edition = "2021"
+description = "MEM|16-10 — the sovereign library. Pure Rust, zero-alloc, BitNet b1.58, honesty first. Dedicated to Alexandria, the first Librarian."
+license = "AGPL-3.0-only"
+publish = false
+
+[dependencies]
+# Added as the lineages (mem8, phoenix, wip-catalog, vaked constellation) land.
+# BitNet b1.58 ternary inference, zero-alloc memory, the verification gate.
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
