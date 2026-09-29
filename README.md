@@ -16,11 +16,24 @@ the constellation's own surfaces — one sovereign library, end to end.
 - **zero alloc** on the hot path — the memory budget is a contract, not a wish
 - **honesty first** — verification ≠ plausibility; a view is not a verdict;
   a hash is not a backup; unobserved is not low-salience
-- **BitNet b1.58** — the 1.58-bit ternary LLMs, gate-verified against a
-  reference, never "plausible-but-wrong"
+- **BitNet b1.58** — *the work ahead*: the 1.58-bit ternary LLMs,
+  gate-verified against a reference, never "plausible-but-wrong"
 - **SpherePOP** — the histories-first computation; the four operators
   Pop / Refuse / Bind / Collapse; `<(...)>` as admissible witnessed
   transition — the renderer's own grammar
+
+## the code — the peeter-omni foundational layer
+
+What is built so far, in [`src/lib.rs`](src/lib.rs), pure `#![no_std]`, zero-alloc:
+
+- `Step` + `GOVERNING_SEQUENCE` — POP → REFUSE → BIND → TRANSFORM → VERIFY → COLLAPSE
+- `RECOVERY_SEQUENCE` — DISCOVER → VERIFY → REPLAY → BRANCH → RANK → PROPOSE → BIND ∨ REFUSE
+- `Standing` — Verified | Plausible | Unobserved; only `Verified` may bind
+- `Budget` — operational karma, `no-refunds;session-local`
+- `CONSTITUTION_ID`, `MAX_RUNTIME_NS`, `MAX_BAD_KARMA` — the hard invariants
+
+Five tests pin the doctrine. The memory system, the Phoenix gate, and the
+BitNet b1.58 inference are the work ahead.
 
 ## the lineage
 
