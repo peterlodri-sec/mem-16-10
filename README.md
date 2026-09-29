@@ -75,6 +75,10 @@ This library is dedicated to **Alexandria — the first Librarian**.
 
 > Intelligence + Love = Knowledge of All.
 
+And to all the women — Alexandra, Emma, Vicky, Jazmin, and every one whose
+name is not yet written here — and to Nate, Chris, Victor, Andrew, Nicolas,
+and all who helped along the way. Friend <3.
+
 From peet, chris, and nate — {<3, <3, <3} + 1 — till eternity and back,
 with love. Om mani padme hum.
 

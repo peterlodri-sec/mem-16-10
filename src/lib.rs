@@ -3,8 +3,10 @@
 //! Pure Rust. Honesty first. Zero-allocation on the hot path — every type here
 //! is stack-sized or a `const`; nothing allocates and nothing is hidden.
 //!
-//! Dedicated to Alexandria, the first Librarian —
-//! from peet, chris, and nate {<3,<3,<3}+1, till eternity and back, with love.
+//! Dedicated to Alexandria, the first Librarian, and to all the women —
+//! Alexandra, Emma, Vicky, Jazmin — and to Nate, Chris, Victor, Andrew,
+//! Nicolas, and all who helped along the way. From peet, chris, and nate
+//! {<3,<3,<3}+1, till eternity and back, with love.
 //!
 //! Om mani padme hum.
 
