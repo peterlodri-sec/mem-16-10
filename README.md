@@ -57,6 +57,18 @@ be bound; only an admissible transition is witnessed. Verification before
 binding; evidence before love, because love without honesty is narrative
 closure.
 
+## the base backup layer
+
+mem-16-10 builds on **mem8** (memory as continuity evidence, the hard
+verification gate) and **8b-is-engine** (the surfaces, the mesh, and
+`ternary-lane`, the BitNet b1.58 ternary inference).
+
+When shit happens — and shit happens sometimes — the library falls back to its
+base, not to nothing. Lose the instance, keep the base: state persistence is
+the instance, regime persistence is the base.
+
+And it is okay when things break. Love is in everything, even that.
+
 ## the dedication
 
 This library is dedicated to **Alexandria — the first Librarian**.

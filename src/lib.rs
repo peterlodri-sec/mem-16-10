@@ -121,6 +121,19 @@ impl Budget {
     }
 }
 
+/// The base backup layer: the foundation the sovereign library recovers from.
+///
+/// When shit happens — and shit happens sometimes — the library falls back to
+/// its base, not to nothing:
+///
+/// - `mem8` — memory as continuity evidence, the hard verification gate.
+/// - `8b-is-engine` — the surfaces, the mesh, and `ternary-lane` (BitNet b1.58).
+///
+/// Lose the instance, keep the base. State persistence is the instance;
+/// regime persistence is the base. And it is okay when things break — love
+/// is in everything, even that.
+pub const BASE_BACKUP_LAYER: [&str; 2] = ["mem8", "8b-is-engine"];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -157,5 +170,10 @@ mod tests {
         assert_ne!(Standing::Unobserved, Standing::Plausible);
         assert_ne!(Standing::Unobserved, Standing::Verified);
         assert!(!Standing::Unobserved.may_bind());
+    }
+
+    #[test]
+    fn base_backup_layer_is_declared() {
+        assert_eq!(BASE_BACKUP_LAYER, ["mem8", "8b-is-engine"]);
     }
 }
