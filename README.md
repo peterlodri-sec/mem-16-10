@@ -31,9 +31,12 @@ What is built so far, in [`src/lib.rs`](src/lib.rs), pure `#![no_std]`, zero-all
 - `Standing` — Verified | Plausible | Unobserved; only `Verified` may bind
 - `Budget` — operational karma, `no-refunds;session-local`
 - `CONSTITUTION_ID`, `MAX_RUNTIME_NS`, `MAX_BAD_KARMA` — the hard invariants
+- **The Escalation Ladder (`mem16 -> 32 ~~> 8k (bleeding-edge)`)**:
+  - `Mem16` (`16 B`) — 16-byte continuity essence cell (dual 64-bit FNV-1a lanes).
+  - `Mem32Wave` (`32 B`) — `Mem16` `[0..16]` + 16-byte sovereign wave/affect/standing header (`amplitude_milli`, `frequency_centi_hz`, `phase`, `decay_id`, `Standing`, `Step`, 4-trit `qt:` gate byte, `generation`, and byte-31 XOR integrity seal).
+  - `BleedingEdge8k` (`8,192 B` = `256 × Mem32Wave` + `8,192` ternary trits in `2,048 B`) — zero-alloc `#![no_std]` ring buffer and BitNet b1.58 ternary horizon where only XOR-sealed `Standing::Verified` waves may `BIND` (pinned golden `0x60e374b73207cd16`).
 
-Five tests pin the doctrine. The memory system, the Phoenix gate, and the
-BitNet b1.58 inference are the work ahead.
+Seven tests pin the doctrine and the `mem16 -> 32 ~~> 8k (bleeding-edge)` ladder.
 
 ## the lineage
 
@@ -45,7 +48,7 @@ SpherePOP ────────► histories-first computation, <(...)> admis
 vaked constellation ─► the surfaces, the ledger, the couch
           │
           ▼
-   MEM|16-10 — the sovereign library
+   MEM|16-10 (16 B) ──► Mem32Wave (32 B) ──~► BleedingEdge8k (8,192 B / 8,192 trits)
 ```
 
 ## the doctrine
