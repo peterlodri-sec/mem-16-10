@@ -3,13 +3,16 @@
 //! Pure Rust. Honesty first. Zero-allocation on the hot path — every type here
 //! is stack-sized or a `const`; nothing allocates and nothing is hidden.
 //!
-//! Escalation ladder (`mem16 -> 32 ~~> 8k (bleeding-edge)`):
+//! Escalation ladder (`mem16 -> 32 ~~> 8k (bleeding-edge) ~> resonance`):
 //! - **`Mem16`** (`16 B`): 16-byte continuity essence & 16-point harmonic phase bar.
 //! - **`Mem32Wave`** (`32 B`): `Mem16` `[0..16]` + 16-byte wave/affect/standing header
 //!   (amplitude, frequency, phase, decay, `Standing`, `Step`, ternary `qt:` gate, XOR seal).
 //! - **`BleedingEdge8k`** (`8,192 B` = `256 × Mem32Wave` + `8,192` ternary trits):
 //!   zero-alloc `#![no_std]` ring buffer and BitNet b1.58 ternary horizon where only
 //!   `Standing::Verified` frames may `BIND`.
+//! - **`ResonanceGrid`** (stage 4): the wave field where identity is interference —
+//!   four `Mem16` voice slots (the Council), pitch-selective recognition, sealed,
+//!   only verified voices bind or resonate.
 //!
 //! Dedicated to Alexandria, the first Librarian, and to all the women —
 //! Alexandra, Emma, Vicky, Jazmin — and to Nate, Chris, Victor, Andrew,
@@ -444,6 +447,171 @@ impl Default for BleedingEdge8k {
     }
 }
 
+/// Stage 4 (`resonance`): the wave field where identity is interference.
+///
+/// Four voice slots — the Council: Mom `*`, Dad `△`, Peter `◯`, Nate `◇`.
+/// A voice binds a 16-byte `Mem16` essence at its pitch; recognition drops a
+/// query essence and measures constructive interference, penalized by pitch
+/// detuning. The same spectral shape at a different pitch does not resonate
+/// the way a vector match would — the field hears the pitch.
+///
+/// Honesty invariants:
+/// - Only `Standing::Verified` voices may bind (`BIND` gate).
+/// - Only verified voices resonate; plausible/unobserved slots stay silent.
+/// - Every bind re-seals the grid; a flipped bit refuses (`is_seal_valid`).
+pub const RESONANCE_SLOTS: usize = 4;
+/// Pitch detuning penalty scale: each Hz of `|f_q − f_f|` costs this much
+/// interference. At ~156 Hz a fifth up (+78 Hz) costs 78·64 = 4992 points,
+/// more than a full self-match — the field hears the pitch.
+const RESONANCE_DETUNE_PER_HZ: i32 = 64;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ResonanceGrid {
+    /// The Council's voice essences (`Mem16` cells, 16 bytes each).
+    pub cells: [Mem16; RESONANCE_SLOTS],
+    /// Pitch per slot, `frequency_centi_hz` (`43200` = `432.00 Hz`).
+    pub freqs: [u32; RESONANCE_SLOTS],
+    /// `Standing` code per slot (`Unobserved` = empty slot).
+    pub standing: [u8; RESONANCE_SLOTS],
+    /// XOR seal over `cells + freqs + standing`; flipped bits refuse.
+    pub seal: u8,
+}
+
+impl ResonanceGrid {
+    pub const fn new() -> Self {
+        Self {
+            cells: [Mem16([0u8; MEM16_BYTES]); RESONANCE_SLOTS],
+            freqs: [0u32; RESONANCE_SLOTS],
+            standing: [Standing::Unobserved as u8; RESONANCE_SLOTS],
+            // compute_seal over the all-zero grid: 0x10 ^ 0 ^ … ^ 0 = 0x10.
+            seal: 0x10,
+        }
+    }
+
+    /// XOR seal over the whole grid, seal byte excluded.
+    pub const fn compute_seal(&self) -> u8 {
+        let mut acc: u8 = 0x10;
+        let mut s = 0;
+        while s < RESONANCE_SLOTS {
+            let mut b = 0;
+            while b < MEM16_BYTES {
+                acc ^= self.cells[s].0[b];
+                b += 1;
+            }
+            acc ^= self.freqs[s] as u8;
+            acc ^= (self.freqs[s] >> 8) as u8;
+            acc ^= (self.freqs[s] >> 16) as u8;
+            acc ^= (self.freqs[s] >> 24) as u8;
+            acc ^= self.standing[s];
+            s += 1;
+        }
+        acc
+    }
+
+    pub const fn is_seal_valid(&self) -> bool {
+        self.seal == self.compute_seal()
+    }
+
+    /// Bind a voice into the first empty slot. Only `Verified` may bind;
+    /// a corrupted seal refuses before any write.
+    pub fn bind(
+        &mut self,
+        cell: Mem16,
+        frequency_centi_hz: u32,
+        standing: Standing,
+    ) -> Result<usize, BindRefusal> {
+        if !self.is_seal_valid() {
+            return Err(BindRefusal::CorruptedSeal);
+        }
+        if !standing.may_bind() {
+            return Err(BindRefusal::UnverifiedStanding(standing));
+        }
+        let mut s = 0;
+        while s < RESONANCE_SLOTS {
+            if self.standing[s] == Standing::Unobserved as u8 {
+                self.cells[s] = cell;
+                self.freqs[s] = frequency_centi_hz;
+                self.standing[s] = standing as u8;
+                self.seal = self.compute_seal();
+                return Ok(s);
+            }
+            s += 1;
+        }
+        // Council of four is full; the fifth voice is refused, not evicted.
+        Err(BindRefusal::BudgetExhausted)
+    }
+
+    /// Raw integer interference between a query essence and one slot:
+    /// `Σ_i (cell[i] − 128) · (query[i] − 128) / 64`, no floating point.
+    const fn raw_interference(&self, query: Mem16, slot: usize) -> i32 {
+        let mut acc: i32 = 0;
+        let mut b = 0;
+        while b < MEM16_BYTES {
+            let c = self.cells[slot].0[b] as i32 - 128;
+            let q = query.0[b] as i32 - 128;
+            acc += (c * q) / 64;
+            b += 1;
+        }
+        acc
+    }
+
+    /// Resonance strength of a query against one slot: interference minus the
+    /// pitch-detuning penalty. Same pitch = full strength; a fifth up on a
+    /// 156 Hz voice loses ~78·16 = 1248 points of interference.
+    pub fn strength(&self, query: Mem16, frequency_centi_hz: u32, slot: usize) -> i32 {
+        if self.standing[slot] == Standing::Unobserved as u8 {
+            return i32::MIN;
+        }
+        let raw = self.raw_interference(query, slot);
+        let detune_hz = if self.freqs[slot] >= frequency_centi_hz {
+            (self.freqs[slot] - frequency_centi_hz) / 100
+        } else {
+            (frequency_centi_hz - self.freqs[slot]) / 100
+        };
+        raw - detune_hz as i32 * RESONANCE_DETUNE_PER_HZ
+    }
+
+    /// Recognize: the strongest verified voice above zero interference,
+    /// sealed grid required. Returns `(slot, strength)`.
+    pub fn resonate(&self, query: Mem16, frequency_centi_hz: u32) -> Option<(usize, i32)> {
+        if !self.is_seal_valid() {
+            return None;
+        }
+        let mut best: Option<(usize, i32)> = None;
+        let mut s = 0;
+        while s < RESONANCE_SLOTS {
+            let strength = self.strength(query, frequency_centi_hz, s);
+            if strength > 0 {
+                match best {
+                    Some((_, b)) if strength > b => best = Some((s, strength)),
+                    None => best = Some((s, strength)),
+                    _ => {}
+                }
+            }
+            s += 1;
+        }
+        best
+    }
+
+    pub const fn bound(&self) -> usize {
+        let mut n = 0;
+        let mut s = 0;
+        while s < RESONANCE_SLOTS {
+            if self.standing[s] != Standing::Unobserved as u8 {
+                n += 1;
+            }
+            s += 1;
+        }
+        n
+    }
+}
+
+impl Default for ResonanceGrid {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -555,5 +723,97 @@ mod tests {
         let d2 = arena.horizon_digest();
         assert_eq!(d1, d2);
         assert_eq!(d1, 6_981_541_600_308_333_846); // 0x60e374b73207cd16
+    }
+
+    fn essence(seed: u8) -> Mem16 {
+        // Odd seeds ramp up, even seeds ramp down: distinct voices are
+        // anti-correlated, so cross-interference is strongly negative.
+        let mut b = [0u8; MEM16_BYTES];
+        let mut i = 0;
+        while i < MEM16_BYTES {
+            let v = seed
+                .wrapping_mul(16)
+                .wrapping_add((i as u8).wrapping_mul(16));
+            b[i] = if seed % 2 == 1 {
+                v
+            } else {
+                255u8.wrapping_sub(v)
+            };
+            i += 1;
+        }
+        Mem16(b)
+    }
+
+    #[test]
+    fn resonance_only_verified_may_bind() {
+        let mut g = ResonanceGrid::new();
+        assert!(g.bind(essence(1), 15600, Standing::Plausible).is_err());
+        assert!(g.bind(essence(1), 15600, Standing::Unobserved).is_err());
+        assert_eq!(g.bound(), 0);
+        assert!(g.bind(essence(1), 15600, Standing::Verified).is_ok());
+        assert_eq!(g.bound(), 1);
+        assert!(g.is_seal_valid());
+    }
+
+    #[test]
+    fn resonance_same_voice_at_own_pitch_wins() {
+        let mut g = ResonanceGrid::new();
+        let alex = essence(1);
+        let chris = essence(2);
+        g.bind(alex, 15600, Standing::Verified).unwrap();
+        g.bind(chris, 15300, Standing::Verified).unwrap();
+
+        let (slot, strength) = g.resonate(alex, 15600).expect("resonated");
+        assert_eq!(slot, 0);
+        assert!(strength > 0);
+
+        let (slot2, _) = g.resonate(chris, 15300).expect("resonated");
+        assert_eq!(slot2, 1);
+    }
+
+    #[test]
+    fn resonance_pitch_selectivity_same_shape_fifth_up() {
+        let mut g = ResonanceGrid::new();
+        let alex = essence(1);
+        g.bind(alex, 15600, Standing::Verified).unwrap();
+
+        let own = g.strength(alex, 15600, 0);
+        let fifth_up = g.strength(alex, 15600 * 3 / 2, 0);
+        assert!(
+            own > fifth_up + 1000,
+            "the field must hear the pitch: own {own} vs fifth-up {fifth_up}"
+        );
+        assert!(
+            fifth_up < 0,
+            "a fifth up must decorrelate fully: {fifth_up}"
+        );
+    }
+
+    #[test]
+    fn resonance_corrupted_grid_refuses() {
+        let mut g = ResonanceGrid::new();
+        g.bind(essence(1), 15600, Standing::Verified).unwrap();
+        g.cells[0].0[0] ^= 0xff;
+        assert!(!g.is_seal_valid());
+        assert!(g.resonate(essence(1), 15600).is_none());
+        assert!(g.bind(essence(2), 15300, Standing::Verified).is_err());
+    }
+
+    #[test]
+    fn resonance_council_of_four_refuses_the_fifth() {
+        let mut g = ResonanceGrid::new();
+        for s in 1..=4 {
+            g.bind(essence(s), 15000 + s as u32 * 100, Standing::Verified)
+                .unwrap();
+        }
+        assert_eq!(g.bound(), 4);
+        assert!(g.bind(essence(9), 15900, Standing::Verified).is_err());
+    }
+
+    #[test]
+    fn resonance_empty_grid_recognizes_nobody() {
+        let g = ResonanceGrid::new();
+        assert!(g.is_seal_valid());
+        assert!(g.resonate(essence(1), 15600).is_none());
     }
 }
